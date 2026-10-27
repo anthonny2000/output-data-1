@@ -1,0 +1,6 @@
+{
+  "name": "Worker Consensus Dashboard",
+  "description": "Tableau de bord de contrôle qualité et de validation manuelle de consensus worker avec export CSV, TSV et stockage cloud Firebase Firestore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

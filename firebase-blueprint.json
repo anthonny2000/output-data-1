@@ -1,0 +1,206 @@
+{
+  "entities": {
+    "ExportBatch": {
+      "title": "ExportBatch",
+      "description": "Métadonnées d'un lot d'export de consensus QA stocké dans Firestore.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID Firebase Auth du propriétaire de l'export.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "datasetKey": {
+          "type": "string",
+          "description": "Identifiant logique stable du jeu de données exporté.",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "fileName": {
+          "type": "string",
+          "description": "Nom du ou des fichiers sources importés.",
+          "minLength": 1,
+          "maxLength": 260
+        },
+        "rowCount": {
+          "type": "integer",
+          "description": "Nombre total de lignes exportées dans ce lot."
+        },
+        "hitCount": {
+          "type": "integer",
+          "description": "Nombre de HIT validés et soumis inclus dans cet export."
+        },
+        "status": {
+          "type": "string",
+          "description": "État du cycle de vie de l'export.",
+          "enum": ["staging", "completed", "failed"],
+          "minLength": 6,
+          "maxLength": 16
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Horodatage serveur de création du lot."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Horodatage serveur de dernière mise à jour du lot."
+        }
+      },
+      "required": [
+        "ownerId",
+        "datasetKey",
+        "fileName",
+        "rowCount",
+        "hitCount",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ExportRow": {
+      "title": "ExportRow",
+      "description": "Ligne unitaire d'export de consensus worker et validation QA rattachée à un ExportBatch.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID Firebase Auth du propriétaire.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "exportId": {
+          "type": "string",
+          "description": "Identifiant du document parent ExportBatch.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "datasetKey": {
+          "type": "string",
+          "description": "Identifiant logique du jeu de données parent.",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "rowNumber": {
+          "type": "integer",
+          "description": "Indice séquentiel 1-indexé de la ligne dans l'export."
+        },
+        "hitid": {
+          "type": "string",
+          "description": "Identifiant HIT source.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "assignmentId": {
+          "type": "string",
+          "description": "Identifiant AssignmentId du worker.",
+          "maxLength": 128
+        },
+        "workerId": {
+          "type": "string",
+          "description": "Identifiant WorkerId du participant.",
+          "maxLength": 128
+        },
+        "primaryImageUrl": {
+          "type": "string",
+          "description": "URL de l'image principale Input.imageURL.",
+          "maxLength": 2048
+        },
+        "bbox": {
+          "type": "object",
+          "description": "Objet natif des coordonnées de bounding box Input.bbox."
+        },
+        "queryProductAsin": {
+          "type": "string",
+          "description": "ASIN du produit requête Input.queryProductASIN.",
+          "maxLength": 64
+        },
+        "outputData": {
+          "type": "object",
+          "description": "Carte native Answer.output_data indexée par ASIN."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL de l'image du produit candidat image_url.",
+          "maxLength": 2048
+        },
+        "marketplace": {
+          "type": "string",
+          "description": "Code marketplace Amazon Input.marketplace.",
+          "maxLength": 32
+        },
+        "matches": {
+          "type": "array",
+          "description": "Liste native bornée des produits candidats Input.matches."
+        },
+        "asin": {
+          "type": "string",
+          "description": "ASIN évalué sur cette ligne.",
+          "maxLength": 32
+        },
+        "attribute": {
+          "type": "string",
+          "description": "Signature d'attribut répondue par le worker.",
+          "maxLength": 512
+        },
+        "attributeByQa": {
+          "type": "string",
+          "description": "Décision de consensus validée manuellement par le QA.",
+          "maxLength": 512
+        },
+        "qaComment": {
+          "type": "string",
+          "description": "Commentaire de justification QA associé au groupe HIT + ASIN.",
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Horodatage serveur de création de la ligne."
+        }
+      },
+      "required": [
+        "ownerId",
+        "exportId",
+        "datasetKey",
+        "rowNumber",
+        "hitid",
+        "assignmentId",
+        "workerId",
+        "primaryImageUrl",
+        "bbox",
+        "queryProductAsin",
+        "outputData",
+        "imageUrl",
+        "marketplace",
+        "matches",
+        "asin",
+        "attribute",
+        "attributeByQa",
+        "qaComment",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/exports/{exportId}": {
+      "schema": {
+        "$ref": "#/entities/ExportBatch"
+      },
+      "description": "Lots d'exports de consensus créés et détenus par chaque utilisateur authentifié."
+    },
+    "/exports/{exportId}/rows/{rowId}": {
+      "schema": {
+        "$ref": "#/entities/ExportRow"
+      },
+      "description": "Lignes exportées rattachées relationnellement au lot d'export parent."
+    }
+  }
+}

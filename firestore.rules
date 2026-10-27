@@ -1,0 +1,238 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation Blueprint: ExportBatch
+    function isValidExportBatch(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'datasetKey',
+          'fileName',
+          'rowCount',
+          'hitCount',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'datasetKey',
+          'fileName',
+          'rowCount',
+          'hitCount',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.ownerId is string &&
+        data.ownerId.size() >= 1 &&
+        data.ownerId.size() <= 128 &&
+        data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.ownerId == request.auth.uid &&
+        data.datasetKey is string &&
+        data.datasetKey.size() >= 1 &&
+        data.datasetKey.size() <= 120 &&
+        data.datasetKey.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.fileName is string &&
+        data.fileName.size() >= 1 &&
+        data.fileName.size() <= 260 &&
+        data.rowCount is int &&
+        data.rowCount >= 0 &&
+        data.rowCount <= 50000 &&
+        data.hitCount is int &&
+        data.hitCount >= 0 &&
+        data.hitCount <= 10000 &&
+        data.status is string &&
+        data.status.size() >= 6 &&
+        data.status.size() <= 16 &&
+        (data.status == 'staging' || data.status == 'completed' || data.status == 'failed') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: ExportRow
+    function isValidExportRow(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'exportId',
+          'datasetKey',
+          'rowNumber',
+          'hitid',
+          'assignmentId',
+          'workerId',
+          'primaryImageUrl',
+          'bbox',
+          'queryProductAsin',
+          'outputData',
+          'imageUrl',
+          'marketplace',
+          'matches',
+          'asin',
+          'attribute',
+          'attributeByQa',
+          'qaComment',
+          'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'exportId',
+          'datasetKey',
+          'rowNumber',
+          'hitid',
+          'assignmentId',
+          'workerId',
+          'primaryImageUrl',
+          'bbox',
+          'queryProductAsin',
+          'outputData',
+          'imageUrl',
+          'marketplace',
+          'matches',
+          'asin',
+          'attribute',
+          'attributeByQa',
+          'qaComment',
+          'createdAt'
+        ]) &&
+        data.ownerId is string &&
+        data.ownerId.size() >= 1 &&
+        data.ownerId.size() <= 128 &&
+        data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.ownerId == request.auth.uid &&
+        data.exportId is string &&
+        data.exportId.size() >= 1 &&
+        data.exportId.size() <= 128 &&
+        data.exportId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.datasetKey is string &&
+        data.datasetKey.size() >= 1 &&
+        data.datasetKey.size() <= 120 &&
+        data.datasetKey.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.rowNumber is int &&
+        data.rowNumber >= 1 &&
+        data.rowNumber <= 50000 &&
+        data.hitid is string &&
+        data.hitid.size() >= 1 &&
+        data.hitid.size() <= 128 &&
+        data.assignmentId is string &&
+        data.assignmentId.size() <= 128 &&
+        data.workerId is string &&
+        data.workerId.size() <= 128 &&
+        data.primaryImageUrl is string &&
+        data.primaryImageUrl.size() <= 2048 &&
+        data.bbox is map &&
+        data.bbox.keys().size() <= 8 &&
+        data.queryProductAsin is string &&
+        data.queryProductAsin.size() <= 64 &&
+        data.outputData is map &&
+        data.outputData.keys().size() <= 200 &&
+        data.imageUrl is string &&
+        data.imageUrl.size() <= 2048 &&
+        data.marketplace is string &&
+        data.marketplace.size() <= 32 &&
+        data.matches is list &&
+        data.matches.size() <= 100 &&
+        (data.matches.size() == 0 || data.matches[0] is map) &&
+        data.asin is string &&
+        data.asin.size() <= 32 &&
+        data.attribute is string &&
+        data.attribute.size() <= 512 &&
+        data.attributeByQa is string &&
+        data.attributeByQa.size() <= 512 &&
+        data.qaComment is string &&
+        data.qaComment.size() <= 2000 &&
+        data.createdAt is timestamp;
+    }
+
+    function isParentExportOwner(exportId) {
+      return exists(/databases/$(database)/documents/exports/$(exportId)) &&
+        get(/databases/$(database)/documents/exports/$(exportId)).data.ownerId == request.auth.uid;
+    }
+
+    function isParentExportStaging(exportId) {
+      return exists(/databases/$(database)/documents/exports/$(exportId)) &&
+        get(/databases/$(database)/documents/exports/$(exportId)).data.ownerId == request.auth.uid &&
+        get(/databases/$(database)/documents/exports/$(exportId)).data.status == 'staging' &&
+        get(/databases/$(database)/documents/exports/$(exportId)).data.datasetKey == incoming().datasetKey;
+    }
+
+    match /exports/{exportId} {
+      allow get: if isVerified() && isValidId(exportId) && existing().ownerId == request.auth.uid;
+      allow list: if isVerified() && resource.data.ownerId == request.auth.uid;
+      allow create: if isVerified() &&
+        isValidId(exportId) &&
+        isValidExportBatch(incoming()) &&
+        incoming().status == 'staging' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if (
+        isVerified() &&
+        isValidId(exportId) &&
+        isValidExportBatch(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().datasetKey == existing().datasetKey &&
+        incoming().fileName == existing().fileName &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        existing().status == 'staging' && (
+          // Action: CompleteExport
+          (incoming().status == 'completed' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'rowCount', 'hitCount', 'updatedAt'])) ||
+          // Action: FailExport
+          (incoming().status == 'failed' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+        )
+      );
+      allow delete: if isVerified() && isValidId(exportId) && existing().ownerId == request.auth.uid;
+
+      match /rows/{rowId} {
+        allow get: if isVerified() &&
+          isValidId(exportId) &&
+          isValidId(rowId) &&
+          existing().ownerId == request.auth.uid &&
+          isParentExportOwner(exportId);
+        allow list: if isVerified() &&
+          resource.data.ownerId == request.auth.uid;
+        allow create: if isVerified() &&
+          isValidId(exportId) &&
+          isValidId(rowId) &&
+          isValidExportRow(incoming()) &&
+          incoming().exportId == exportId &&
+          incoming().createdAt == request.time &&
+          isParentExportStaging(exportId);
+        allow update: if false;
+        allow delete: if isVerified() &&
+          isValidId(exportId) &&
+          isValidId(rowId) &&
+          existing().ownerId == request.auth.uid &&
+          isParentExportOwner(exportId);
+      }
+    }
+  }
+}
